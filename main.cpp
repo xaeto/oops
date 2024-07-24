@@ -8,9 +8,12 @@
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <cmath>
+
+#include <glm/gtc/matrix_transform.hpp>
 using namespace glm;
 
-GLuint loadShader(const std::string path, GLint type){
+GLuint loadShader(const std::string &path, GLint type){
     GLuint shaderId = glCreateShader(type);
     std::ifstream stream (path, std::ios::in);
 
@@ -45,7 +48,7 @@ GLuint loadShader(const std::string path, GLint type){
     return shaderId;
 }
 
-GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path){
+GLuint LoadShaders(const std::string &vertex_file_path,const std::string &fragment_file_path){
     GLint fragmentShaderId = loadShader(fragment_file_path, GL_FRAGMENT_SHADER);
     GLint vertexShaderId = loadShader(vertex_file_path, GL_VERTEX_SHADER);
 
@@ -101,24 +104,65 @@ int main(){
     glfwMakeContextCurrent(window); // Initialize GLEW
     glewExperimental = true; // Needed for core profile
     glewInit();
-
     static const GLfloat g_vertex_buffer_data[] = {
-        -1.0f, -1.0f, 0.0f,
-        1.0f, -1.0f, 0.0f,
-        0.0f,  1.0f, 0.0f,
+        -1.0f,-1.0f,-1.0f, // triangle 1 : begin
+        -1.0f,-1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f, // triangle 1 : end
+        1.0f, 1.0f,-1.0f, // triangle 2 : begin
+        -1.0f,-1.0f,-1.0f,
+        -1.0f, 1.0f,-1.0f, // triangle 2 : end
+        1.0f,-1.0f, 1.0f,
+        -1.0f,-1.0f,-1.0f,
+        1.0f,-1.0f,-1.0f,
+        1.0f, 1.0f,-1.0f,
+        1.0f,-1.0f,-1.0f,
+        -1.0f,-1.0f,-1.0f,
+        -1.0f,-1.0f,-1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f,-1.0f,
+        1.0f,-1.0f, 1.0f,
+        -1.0f,-1.0f, 1.0f,
+        -1.0f,-1.0f,-1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f,-1.0f, 1.0f,
+        1.0f,-1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f,-1.0f,-1.0f,
+        1.0f, 1.0f,-1.0f,
+        1.0f,-1.0f,-1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f,-1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f,-1.0f,
+        -1.0f, 1.0f,-1.0f,
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f,-1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f,-1.0f, 1.0f
     };
+
+    GLfloat g_color_buffer_data[108] = {};
+
+    for(int v = 0; v < 12*3; v++){
+        g_color_buffer_data[3*v+0] = sin(g_vertex_buffer_data[3*v + 0]);
+        g_color_buffer_data[3*v+1] = sin(g_vertex_buffer_data[3*v + 1]);
+        g_color_buffer_data[3*v+2] = sin(g_vertex_buffer_data[3*v + 2]);
+    }
+
+    GLuint colorbuffer;
+    glGenBuffers(1, &colorbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
 
     GLuint VertexArrayID;
     glGenVertexArrays(1, &VertexArrayID);
     glBindVertexArray(VertexArrayID);
 
-    // This will identify our vertex buffer
     GLuint vertexbuffer;
-    // Generate 1 buffer, put the resulting identifier in vertexbuffer
     glGenBuffers(1, &vertexbuffer);
-    // The following commands will talk about our 'vertexbuffer' buffer
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    // Give our vertices to OpenGL.
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
@@ -127,11 +171,26 @@ int main(){
     std::cout << programId << std::endl;
     glUseProgram(programId);
 
+    int width = 1024;
+    int height = 768;
+
+    glm::mat4 Projection = glm::perspective(glm::radians(45.0f), (float) width / (float)height, 0.1f, 100.0f);
+    glm::mat4 View = glm::lookAt(
+            glm::vec3(4,3,3), // Camera is at (4,3,3), in World Space
+            glm::vec3(0,0,0), // and looks at the origin
+            glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
+            );
+
+    glm::mat4 Model = glm::mat4(1.0f);
+    glm::mat4 mvp = Projection * View * Model; // Remember, matrix multiplication is the other way around
+
+    GLuint MatrixID = glGetUniformLocation(programId, "MVP");
+    glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &mvp[0][0]);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
     do{
-        // Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // Draw nothing, see you in tutorial 2 !
-        // Draw the triangle !
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
         glVertexAttribPointer(
@@ -140,16 +199,28 @@ int main(){
                 GL_FLOAT,           // type
                 GL_FALSE,           // normalized?
                 0,                  // stride
-                (void*)0            // array buffer offset
+                nullptr            // array buffer offset
                 );
-        // Draw the triangle !
-        glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+        glDrawArrays(GL_TRIANGLES, 0, 12*3);
         glDisableVertexAttribArray(0);
+
+        // 2nd attribute buffer : colors
+        glEnableVertexAttribArray(1);
+        glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+        glVertexAttribPointer(
+                1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+                3,                                // size
+                GL_FLOAT,                         // type
+                GL_FALSE,                         // normalized?
+                0,                                // stride
+                (void*)0                          // array buffer offset
+                );
         // Swap buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
 
-    } // Check if the ESC key was pressed or the window was closed
+
+    }
     while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
             glfwWindowShouldClose(window) == 0 );
 
