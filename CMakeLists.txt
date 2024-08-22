@@ -1,18 +1,30 @@
-cmake_minimum_required(VERSION 3.1...3.29)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CXX_FLAGS "-Wall")
-
+cmake_minimum_required(VERSION 3.14.0)
 project(
     oops
     VERSION 1.0
     LANGUAGES CXX
 )
 
-add_executable(oops main.cpp)
+set(CMAKE_CXX_STANDARD 14)
+set(CXX_FLAGS "-Wall -stdlib=libc++")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+include_directories(
+    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/src
+)
+
+file(GLOB SOURCES
+    "${PROJECT_SOURCE_DIR}/include/*.h"
+    "${PROJECT_SOURCE_DIR}/include/*.hpp"
+    "${PROJECT_SOURCE_DIR}/src/*.cpp"
+    "${PROJECT_SOURCE_DIR}/src/*.c"
+)
+
+add_executable(oops main.cpp ${SOURCES})
 find_package(OpenGL REQUIRED)
-target_link_libraries(oops PRIVATE ${OPENGL_LIBRARIES})
-target_include_directories(oops PRIVATE ${OPENGL_INCLUDE_DIR})
+target_link_libraries(oops PRIVATE ${OPENGL_LIBRARIES} ${OPENGL_INCLUDE_DIR})
 
 find_package(OpenGL REQUIRED)
 target_link_libraries(oops PRIVATE OpenGL::GL)
